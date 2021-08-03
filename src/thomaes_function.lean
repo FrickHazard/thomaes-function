@@ -1,3 +1,9 @@
+/-
+Copyright (c) 2015, 2017 Ender Doe. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Ender Doe
+-/
+
 import data.real.irrational
 
 

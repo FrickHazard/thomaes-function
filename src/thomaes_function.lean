@@ -23,6 +23,7 @@ dif_neg $ h
 /-- The thomae function, restricted to the rationals and taking values in the rationals. -/
 def thomae_rat (q : ℚ) : ℚ := 1 / q.denom
 
+--@[norm_cast]
 lemma coe_thomae_rat (q : ℚ) : thomaes_function q = thomae_rat q :=
 begin
   unfold thomaes_function,
@@ -33,6 +34,9 @@ begin
     congr',
     exact_mod_cast classical.some_spec h },
 end
+
+@[norm_cast] lemma coe_rhomae_rat' (q : ℚ) : (thomae_rat q : ℝ) = thomaes_function q :=
+(coe_thomae_rat q).symm
 
 open rat
 
@@ -71,36 +75,19 @@ lemma int_not_irrational  (z : ℤ): ¬irrational z := begin
   exact rat.not_irrational ↑z,
 end
 
--- up to here
+-- if you prove the theorem for the rat function first...
+theorem thomae_rat_int_eq_one (z : ℤ) : thomae_rat z = 1 :=
+by simp [thomae_rat]
 
+-- ...then the theorem for the real function is easy!
 theorem thomas_int_eq_one (z : ℤ): thomaes_function z = 1 := begin
-  unfold thomaes_function,
-  -- TODO simp ite with z not irrational
-  simp [int_not_irrational],
-  generalize_proofs A B,
-  intro h,
-  rw ←rat.cast_one,
-  apply congr_arg,
-  have : (↑z :ℝ)  = (↑(↑z :ℚ): ℝ),
-  norm_cast,
-  simp_rw this,
-  apply rat.eq_iff_mul_eq_mul.mpr,
-  simp_rw [
-    (one_over_rat_of_real_denom_eq z)
-  ],
-  -- TODO simp with integer denom and basic algebra
-  simp,
+  suffices : thomaes_function (z : ℚ) = 1,
+    convert this using 2, norm_cast,
+  exact_mod_cast thomae_rat_int_eq_one z,
 end
 
-theorem thomaes_rat_ne_zero_eq_one_over (q : ℚ) (h: q ≠ 0) : thomaes_function q = (rat.mk_pnat 1 ⟨q.denom, q.3⟩) :=
-begin
-  unfold thomaes_function,
-  simp [rat.not_irrational, h],
-  generalize_proofs A B,
-  apply rat.eq_iff_mul_eq_mul.mpr,
-  simp_rw [one_over_rat_of_real_denom_eq q, mk_pnat_num_one_num_eq_one ,mk_pnat_num_one_denom_eq],
-  simp,
-end
+-- I'm up to here. Do you want to take over? There's still a few
+-- errors I'm afraid
 
 theorem irrational.int_add (z : ℤ) {x : ℝ} (h : irrational x) :
 irrational (x + ↑z) :=

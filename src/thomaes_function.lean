@@ -10,138 +10,68 @@ import data.real.irrational
 local notation `|` x `|` := abs x
 open_locale classical
 
-lemma very_useful_thing (n: ℕ) (h: n > 0) : ((1 / n) :ℚ).denom = n :=
-begin
-  have : (1: ℤ).nat_abs.coprime (n :ℤ).nat_abs,
-  {
-    -- TODO remove this simp
-    simp,
-  },
-  have := rat.denom_div_eq_of_coprime (by linarith [h]) this,
-  norm_cast at this,
-  rw rat.mk_eq_div at this,
-  simp at this,
-  simp,
-  exact this,
-end
-lemma very_useful_thing_2  (n: ℕ) (h: n > 0) : ((1 / n) :ℚ).num = 1 :=
-begin
-  have : (1: ℤ).nat_abs.coprime (n :ℤ).nat_abs, {
-   simp,
-  },
-  have := rat.num_div_eq_of_coprime (by linarith [h]) this,
-  simp at this,
-  simp,
-  exact this,
-end
-
-lemma real_of_rat_eq_imp_rat_eq (q₁ q₂ : ℚ)  (h: (↑q₁ :ℝ) = ↑q₂): q₁=q₂ :=
-begin
-  rw ←real.of_rat_eq_cast q₁ at h,
-  rw ←real.of_rat_eq_cast q₂ at h,
-  by_contradiction H,
-  cases ne_iff_lt_or_gt.mp H with A B,
-  linarith [real.of_rat_lt.mpr A],
-  linarith [real.of_rat_lt.mpr B],
-end
-
-lemma mk_pnat_num_one_denom_eq  (n : ℕ+): (rat.mk_pnat 1 n).denom = n :=
-begin
- rw rat.mk_pnat_denom,
- rw int.nat_abs_one,
- simp,
-end
-
-lemma mk_pnat_num_one_num_eq_one  (n : ℕ+): (rat.mk_pnat 1 n).num = 1 :=
-begin
- rw rat.mk_pnat_num,
- rw int.nat_abs_one,
- simp,
-end
-
 theorem not_irrational_is_rat (x: ℝ) : ¬ (irrational x) →  x ∈ set.range (coe : ℚ → ℝ) :=
-begin
-  intro h,
-  unfold irrational at h,
-  push_neg at h,
-  assumption,
-end
-
-noncomputable def one_over_denom_rat_of_real (r : ℝ) (h : ¬irrational r) : ℚ :=
-rat.mk_pnat 1 ⟨(classical.some  (not_irrational_is_rat r h)).denom, (classical.some (not_irrational_is_rat r h)).pos⟩
-
-lemma one_over_rat_of_real_denom_eq (q: ℚ) : (one_over_denom_rat_of_real q (rat.not_irrational q)).denom = q.denom ∧ (one_over_denom_rat_of_real q (rat.not_irrational q)).num = 1:=
-begin
-  unfold one_over_denom_rat_of_real,
-  generalize_proofs H,
-  constructor,
-  {
-    -- TODO why doesn't norm_cast work here?
-    simp_rw (real_of_rat_eq_imp_rat_eq _ _ (classical.some_spec H)),
-    exact mk_pnat_num_one_denom_eq _,
-  },
-  {
-    exact mk_pnat_num_one_num_eq_one _,
-  }
-end
+not_not.1
 
 noncomputable def thomaes_function (r : ℝ) : ℝ :=
-if h : irrational r
-  then 0
-  else
-    if r = 0
-      then 1
-      else one_over_denom_rat_of_real r h
+if h : ∃ (q : ℚ), (q : ℝ) = r then (1 : ℝ) / (classical.some h).denom else 0
 
-theorem thomaes_at_irrational_eq_zero {x : ℝ} (h: irrational x) : thomaes_function x = 0 :=
+theorem thomaes_at_irrational_eq_zero {x : ℝ} (h: irrational x) : 
+  thomaes_function x = 0 :=
+dif_neg $ h
+
+/-- The thomae function, restricted to the rationals and taking values in the rationals. -/
+def thomae_rat (q : ℚ) : ℚ := 1 / q.denom
+
+lemma coe_thomae_rat (q : ℚ) : thomaes_function q = thomae_rat q :=
 begin
   unfold thomaes_function,
-  simp [h],
+  rw dif_pos (⟨q, rfl⟩ : ∃ (q_1 : ℚ), (q_1 : ℝ) = ↑q),
+  { generalize_proofs h,
+    unfold thomae_rat,
+    norm_num,
+    congr',
+    exact_mod_cast classical.some_spec h },
 end
 
-theorem thomaes_pos_input_num_eq_one (q : ℚ) : ∃ (q₂ : ℚ), ↑q₂ = thomaes_function q ∧ q₂.num = 1 ∧ q₂.denom = q.denom :=
+open rat
+
+-- this should be in data.rat.basic
+lemma num_inv_nat {n : ℕ} (hn : 0 < n) : (n : ℚ)⁻¹.num = 1 :=
 begin
-  unfold thomaes_function,
-  use rat.mk_pnat 1 ⟨q.2, q.3⟩,
-  simp [rat.not_irrational q],
-  generalize_proofs D a,
-  by_cases q = 0,
-  constructor, {
-    simp_rw [h],
-    norm_cast,
-    -- TODO simp ite
-    simp,
-    apply rat.eq_iff_mul_eq_mul.mpr,
-    rw rat.mk_pnat_num,
-    rw rat.mk_pnat_denom,
-    -- TODO simp gcd
-    simp,
-  },
-  {
-    exact ⟨
-      mk_pnat_num_one_num_eq_one ⟨q.denom, D⟩,
-      mk_pnat_num_one_denom_eq ⟨ q.denom, D⟩
-    ⟩
-  },
-  simp [h],
-  constructor,
-  {
-    apply rat.eq_iff_mul_eq_mul.mpr,
-    simp_rw [mk_pnat_num_one_denom_eq, mk_pnat_num_one_num_eq_one, one_over_rat_of_real_denom_eq q],
-    simp,
-  },
-  {
-     exact ⟨
-      mk_pnat_num_one_num_eq_one ⟨q.denom, D⟩,
-      mk_pnat_num_one_denom_eq ⟨ q.denom, D⟩
-    ⟩
-  },
+  rw [rat.inv_def', rat.coe_nat_num, rat.coe_nat_denom],
+  suffices : (((1 : ℤ) : ℚ) / (n : ℤ)).num = 1,
+    exact_mod_cast this,
+  apply num_div_eq_of_coprime,
+  { assumption_mod_cast },
+  { simp }
+end
+
+-- so should this
+lemma denom_inv_nat {n : ℕ} (hn : 0 < n) : (n : ℚ)⁻¹.denom = n :=
+begin
+  rw [rat.inv_def', rat.coe_nat_num, rat.coe_nat_denom],
+  suffices : ((((1 : ℤ) : ℚ) / (n : ℤ)).denom : ℤ) = n,
+    exact_mod_cast this,
+  apply denom_div_eq_of_coprime,
+  { assumption_mod_cast },
+  { simp only [nat.coprime_one_left_iff, int.nat_abs_one]},
+end
+
+lemma thomae_rat_num (q : ℚ) : (thomae_rat q).num = 1 :=
+by simp [thomae_rat, num_inv_nat q.pos ]
+
+lemma thomae_rat_denom (q : ℚ) : (thomae_rat q).denom = q.denom :=
+begin
+  simp [thomae_rat, denom_inv_nat q.pos],
 end
 
 lemma int_not_irrational  (z : ℤ): ¬irrational z := begin
   rw  ←rat.cast_coe_int,
   exact rat.not_irrational ↑z,
 end
+
+-- up to here
 
 theorem thomas_int_eq_one (z : ℤ): thomaes_function z = 1 := begin
   unfold thomaes_function,

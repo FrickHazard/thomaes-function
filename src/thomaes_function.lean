@@ -139,13 +139,13 @@ begin
   linarith,
 end
 
+ -- TODO not familiar with finite api, seems like this should be really simple
 theorem delta_f_indices_finite (n : ℕ) (h: n > 0) : { i : ℕ | 0 < i ∧ i ≤ n}.finite :=
 begin
   have succ_fin := set.finite.image nat.succ (set.finite_lt_nat n),
   suffices : (nat.succ '' {i : ℕ | i < n}) = { i : ℕ | 0 < i ∧ i ≤ n},
   rw this at succ_fin,
   assumption,
-  -- TODO not familiar with finite api, seems like this should be really simple
   ext x,
   split,
   {

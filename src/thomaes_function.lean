@@ -74,6 +74,12 @@ lemma int_not_irrational  (z : ℤ): ¬irrational z :=
 theorem thomae_rat_int_eq_one (z : ℤ) : thomae_rat z = 1 :=
   by simp [thomae_rat]
 
+theorem thomae_rat_pos (q : ℚ) : 0 < (thomae_rat q) := begin
+  apply rat.num_pos_iff_pos.mp,
+  rw thomae_rat_num,
+  exact zero_lt_one,
+end
+
 theorem thomas_int_eq_one (z : ℤ): thomaes_function z = 1 := begin
   suffices : thomaes_function (z : ℚ) = 1,
     convert this using 2, norm_cast,
@@ -139,6 +145,7 @@ begin
   suffices : (nat.succ '' {i : ℕ | i < n}) = { i : ℕ | 0 < i ∧ i ≤ n},
   rw this at succ_fin,
   assumption,
+  -- TODO not familiar with finite api, seems like this should be really simple
   ext x,
   split,
   {
@@ -183,10 +190,75 @@ begin
     exact irrational_ne_rat _ h,
 end
 
+lemma rat_mk_int_one (z : ℤ) (h: z ≠ 0): rat.mk z z = 1 := begin
+  rw rat.mk_eq_div z z,
+  rw ←rat.coe_int_div_self z,
+  rw int.div_self,
+  norm_cast,
+  assumption,
+end
+lemma casting_thing_remove_me (a: ℝ) (b: ℤ) (h: b ≠ 0): (a  * b) / b = a :=
+begin
+  rw mul_div_right_comm,
+  rw mul_comm_div',
+  norm_cast,
+  rw rat_mk_int_one b h,
+  simp,
+end
 
+lemma irrational_btwn_int (x : ℝ) (h : irrational x) : ↑⌊x⌋ < x ∧ x < ↑⌊x⌋ + 1 :=
+begin
+  have := (irrational_iff_ne_rational x).mp h (floor x) 1,
+  simp at this,
+  constructor,
+  cases ne.lt_or_lt this,
+  linarith [floor_le x],
+  assumption,
+  cases ne.lt_or_lt this,
+  linarith,
+  linarith [lt_floor_add_one x],
+end
+theorem k_of_i_fact (x : ℝ) (h: irrational x) :
+∀ (i : ℕ), 0 < i → ((⌊x * i⌋:ℝ ) / (i : ℝ)) < x ∧ (x <  ((⌊x * i⌋ + 1) :ℝ) / (i :ℝ))
+:=
+begin
+   intros i i_pos,
+   have : ↑i ≠ (0 : ℚ), {
+     norm_cast,
+     linarith [i_pos],
+   },
+   have := irrational.mul_rat h this,
+   have btwn_h:= irrational_btwn_int _ this,
+   clear this,
+
+   have fact: (x * (i : ℤ)) / (i :ℤ) = x, {
+    apply casting_thing_remove_me,
+    have : ↑i ≠ (0 : ℤ), {
+     norm_cast,
+     linarith [i_pos],
+    },
+    assumption,
+  },
+
+   simp at fact,
+
+   norm_cast at btwn_h,
+   have i_pos_real: (0 : ℝ ) < i,
+   { norm_cast, assumption },
+   constructor,
+
+   have := div_lt_div_of_lt i_pos_real btwn_h.1,
+   rw fact at this,
+   assumption,
+   clear this,
+   have := div_lt_div_of_lt i_pos_real btwn_h.2,
+   rw fact at this,
+   simp at this,
+   assumption,
+end
 
 theorem no_rat_between  (A : ℤ) (q : ℚ) (l: (A / q.denom : ℚ) < q) (r: q < ((A +1) / q.denom : ℚ))
-: false  :=
+: false :=
 begin
   nth_rewrite 1 ←rat.num_div_denom q at l,
   nth_rewrite 0 ←rat.num_div_denom q at r,
@@ -204,7 +276,7 @@ begin
   apply metric.continuous_at_iff.mpr,
   simp_rw [real.dist_eq , thomaes_at_irrational_eq_zero h, sub_zero],
   intros ε ε_pos,
-  -- There exists a rational number 1/(r+1) between epsilon and 0
+  -- There exists a rational number 1 / (r+1) between epsilon and 0
   -- by the archmedian property.
   cases (exists_nat_one_div_lt ε_pos) with r hr,
 
@@ -214,60 +286,50 @@ begin
     (delta_f x h)
     (delta_f_indices_finite _ r_add_one_pos)
     (delta_f_indices_nonempty _ r_add_one_pos)
-    with ⟨n, ⟨hn₁, hn₂⟩ ⟩,
+    with ⟨n, ⟨n_pos, n_le_r_plus_1⟩, n_min_indice⟩,
 
   use delta_f x h n,
 
   constructor,
-  {
-    exact delta_f_pos h hn₁.1,
-  },
+
+  exact delta_f_pos h n_pos,
+
   {
     intros x₁ hx₁,
 
     by_cases H : irrational x₁,
+
     {
       rw thomaes_at_irrational_eq_zero H,
       norm_num,
       assumption,
     },
+
     {
       unfold irrational at H,
       push_neg at H,
-      set q₁  := classical.some H with q₁_def,
-      have hq₁ := classical.some_spec H,
-      rw ←q₁_def at hq₁,
-      rw ←hq₁,
-      rcases thomaes_pos_input_num_eq_one q₁ with ⟨a₁, a₂, a₃⟩,
-      rw ←a₂,
-      unfold irrational at h,
+      cases H with q q_eq_x,
+      subst q_eq_x,
+      norm_cast,
 
-      have a₁_pos : (↑a₁ :ℝ) > 0, {
-        norm_cast,
-        apply rat.num_pos_iff_pos.mp,
-        linarith,
-      },
+      rw abs_of_pos (thomae_rat_pos q),
 
-      rw abs_of_pos a₁_pos,
-
-      have : (r + 1) ≤ a₁.denom,
+      have : (r + 1) ≤ (thomae_rat q).denom,
       {
-        rw a₃.2,
-        rw ←hq₁ at hx₁,
         by_contradiction H,
         push_neg at H,
 
-        have k_of_i_fact := k_of_i_fact x h q₁.denom q₁.pos,
+        have k_of_i_fact := k_of_i_fact x h (thomae_rat q).denom (thomae_rat q).pos,
+        have lt_delta_of_q := lt_of_lt_of_le hx₁ (n_min_indice (thomae_rat q).denom ⟨(thomae_rat q).pos, le_of_lt H⟩),
 
-        have lt_delta_of_q := lt_of_lt_of_le hx₁ (hn₂ q₁.denom ⟨q₁.pos, le_of_lt H⟩),
         unfold delta_f at lt_delta_of_q,
         norm_num at lt_delta_of_q,
         rcases lt_delta_of_q with ⟨ldelta, rdelta⟩,
 
-        have AA : x - ↑(k_of_i x h q₁.denom) / ↑(q₁.denom) > 0, {
+        have AA : x - ↑(⌊ x *  (thomae_rat q).denom⌋) / ↑((thomae_rat q).denom) > 0, {
           linarith [k_of_i_fact.1],
         },
-        have BB : x - (↑(k_of_i x h q₁.denom) + 1) / ↑(q₁.denom) < 0, {
+        have BB : x - (↑⌊ x *  (thomae_rat q).denom⌋ + 1) / ↑((thomae_rat q).denom) < 0, {
           linarith [k_of_i_fact.2],
         },
 
@@ -277,37 +339,39 @@ begin
         have r := abs_lt.mp rdelta,
         simp at r,
         simp at l,
-        apply no_rat_between (k_of_i x h q₁.denom) q₁,
+        apply no_rat_between (⌊ x * (thomae_rat q).denom⌋) q,
         {
           norm_cast,
           have := l.1,
           norm_cast at this,
+          rw thomae_rat_denom at this,
+          rw thomae_rat_denom,
           exact this,
         },
         {
           norm_cast,
           have := r.2,
           norm_cast at this,
+          rw thomae_rat_denom at this,
+          rw thomae_rat_denom,
           exact this,
         },
       },
-      have : a₁ ≤ 1 / (r + 1),
-      {
-        apply rat.le_def'.mpr,
-        rw a₃.1,
-        norm_cast,
-
-        rw very_useful_thing _ r_add_one_pos,
-        rw very_useful_thing_2 _ r_add_one_pos,
-        simp,
-        linarith,
-      },
-      have : (a₁ :ℝ) ≤ (((1 / (r + 1)) :ℚ) :ℝ) , {
-        norm_cast,
-        exact this,
-      },
-      calc (a₁ :ℝ) ≤ (((1 / (r + 1)) :ℚ) :ℝ) : this
-      ... < ε : by { push_cast, exact hr },
+      suffices : ((thomae_rat q) :ℝ) ≤ (((1 / (r + 1)) :ℚ) :ℝ),
+        calc ((thomae_rat q) :ℝ) ≤ (((1 / (r + 1)) :ℚ) :ℝ) : this
+        ... < ε : by { push_cast, exact hr },
+      norm_cast,
+      apply rat.le_def'.mpr,
+      simp [
+        thomae_rat_num,
+        num_inv_nat,
+        denom_inv_nat
+      ],
+      norm_cast,
+      rw [num_inv_nat, denom_inv_nat],
+      simp,
+      linarith,
+      repeat { exact r_add_one_pos },
     },
   },
 end

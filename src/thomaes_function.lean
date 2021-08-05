@@ -16,7 +16,7 @@ not_not.1
 noncomputable def thomaes_function (r : ℝ) : ℝ :=
 if h : ∃ (q : ℚ), (q : ℝ) = r then (1 : ℝ) / (classical.some h).denom else 0
 
-theorem thomaes_at_irrational_eq_zero {x : ℝ} (h: irrational x) : 
+theorem thomaes_at_irrational_eq_zero {x : ℝ} (h: irrational x) :
   thomaes_function x = 0 :=
 dif_neg $ h
 
@@ -70,10 +70,8 @@ begin
   simp [thomae_rat, denom_inv_nat q.pos],
 end
 
-lemma int_not_irrational  (z : ℤ): ¬irrational z := begin
-  rw  ←rat.cast_coe_int,
-  exact rat.not_irrational ↑z,
-end
+lemma int_not_irrational  (z : ℤ): ¬irrational z :=
+  by exact_mod_cast rat.not_irrational (z :ℚ)
 
 -- if you prove the theorem for the rat function first...
 theorem thomae_rat_int_eq_one (z : ℤ) : thomae_rat z = 1 :=
@@ -86,18 +84,14 @@ theorem thomas_int_eq_one (z : ℤ): thomaes_function z = 1 := begin
   exact_mod_cast thomae_rat_int_eq_one z,
 end
 
+theorem irrational.add_int (z : ℤ) {x : ℝ} (h : irrational x) :
+irrational (x + ↑z) :=
+by exact_mod_cast irrational.add_rat z h
+
 -- I'm up to here. Do you want to take over? There's still a few
 -- errors I'm afraid
 
-theorem irrational.int_add (z : ℤ) {x : ℝ} (h : irrational x) :
-irrational (x + ↑z) :=
-begin
- rw ←rat.cast_coe_int,
- rw add_comm,
- exact irrational.rat_add z h,
-end
-
-theorem rat_add_nat_denom_eq (z: ℤ) (q : ℚ) : (q + z).denom = q.denom :=
+theorem rat_add_int_denom_eq (z: ℤ) (q : ℚ) : (q + z).denom = q.denom :=
 begin
   have := q.4,
   rw ←int.nat_abs_of_nat q.denom at this,
@@ -128,7 +122,7 @@ end
 theorem thomaes_is_perodic (n : ℤ) (x  : ℝ) : thomaes_function x = thomaes_function (x + n) :=
 begin
   by_cases (irrational x), {
-    rw thomaes_at_irrational_eq_zero (irrational.int_add n h),
+    rw thomaes_at_irrational_eq_zero (irrational.add_int n h),
     rw thomaes_at_irrational_eq_zero h,
   }, {
     unfold irrational at h,
@@ -152,7 +146,7 @@ begin
     rw mk_pnat_num_one_denom_eq,
     rw mk_pnat_num_one_num_eq_one,
     simp,
-    exact rat_add_nat_denom_eq n q,
+    exact rat_add_int_denom_eq,
   }
 end
 

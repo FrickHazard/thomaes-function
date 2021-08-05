@@ -132,101 +132,70 @@ noncomputable def delta_f (x : ℝ) (h : irrational x) : ℕ → ℝ :=
   (|x - (⌊x * i⌋ + 1) / (i :ℝ)|)
 
 theorem delta_f_indices_nonempty (n : ℕ) (h: n > 0) : { i : ℕ | 0 < i ∧ i ≤ n}.nonempty :=
+⟨1, zero_lt_one, by linarith⟩
+
+-- should be in mathlib
+lemma set.finite_Ico_nat (a b : ℕ) : (set.Ico a b).finite :=
 begin
-  use 1,
-  constructor,
-  exact zero_lt_one,
-  linarith,
+  cases le_or_lt b a with h h,
+  { rw ← set.Ico_eq_empty_iff at h,
+    rw h,
+    exact set.finite_empty },
+  { convert set.finite.image (λ x, x + a) (set.finite_lt_nat (b -a)),
+    ext c,
+    split,
+    { rintro ⟨h1, h2⟩,
+      rw le_iff_exists_add at h1,
+      rcases h1 with ⟨d, rfl⟩,
+      exact ⟨d, nat.lt_sub_left_of_add_lt h2, add_comm _ _⟩ },
+    { rintro ⟨d, hd1, rfl⟩,
+      dsimp at *,
+      refine ⟨nat.le_add_left a d, nat.add_lt_of_lt_sub_right hd1⟩ } }
 end
 
- -- TODO not familiar with finite api, seems like this should be really simple
-theorem delta_f_indices_finite (n : ℕ) (h: n > 0) : { i : ℕ | 0 < i ∧ i ≤ n}.finite :=
+-- as should this and the other ones Icc, Ioo (other two proofs are also 3 lines long)
+lemma set.finite_Ioc_nat (a b : ℕ) : (set.Ioc a b).finite :=
 begin
-  have succ_fin := set.finite.image nat.succ (set.finite_lt_nat n),
-  suffices : (nat.succ '' {i : ℕ | i < n}) = { i : ℕ | 0 < i ∧ i ≤ n},
-  rw this at succ_fin,
-  assumption,
-  ext x,
-  split,
-  {
-    intro h,
-    cases h with h1 h2,
-    rw ←h2.2,
-    constructor,
-    exact nat.zero_lt_succ h1,
-    exact  nat.succ_le_of_lt  h2.1,
-  },
-  {
-    intro h,
-    use x.pred,
-    constructor, {
-      rw set.mem_set_of_eq,
-      linarith [h.2,  @nat.pred_lt x (by linarith [h.1])],
-    },
-    exact nat.succ_pred_eq_of_pos h.1,
-  }
+  convert set.finite_Ico_nat (a + 1) (b + 1),
+  ext c,
+  exact and_congr nat.lt_iff_add_one_le nat.lt_succ_iff.symm
 end
+
+theorem delta_f_indices_finite (n : ℕ) (h: n > 0) : { i : ℕ | 0 < i ∧ i ≤ n}.finite :=
+set.finite_Ioc_nat 0 n
 
 theorem irrational_ne_rat {x: ℝ} (q : ℚ) (h: irrational x) : x ≠ q :=
-begin
-  unfold irrational at h,
-  intro x_eq_q,
-  apply h,
-  use q,
-  exact eq.symm x_eq_q,
-end
+λ h2, h ⟨q, h2.symm⟩
 
 theorem delta_f_pos {x : ℝ} (h : irrational x) {n : ℕ} (n_pos : n > 0)
 : delta_f x h n > 0 :=
 begin
   unfold delta_f,
-  norm_num,
-  constructor,
-  suffices : x ≠ ((⌊x * ↑n⌋ / n) : ℚ),
+  simp only [abs_pos, gt_iff_lt, lt_min_iff],
+  split,
+  { suffices : x ≠ ((⌊x * ↑n⌋ / n) : ℚ),
     exact_mod_cast sub_ne_zero.mpr this,
-    exact irrational_ne_rat _ h,
-  suffices : x ≠ (((⌊x * ↑n⌋ + 1) / n) : ℚ),
+    exact irrational_ne_rat _ h },
+  { suffices : x ≠ (((⌊x * ↑n⌋ + 1) / n) : ℚ),
     exact_mod_cast sub_ne_zero.mpr this,
-    exact irrational_ne_rat _ h,
+    exact irrational_ne_rat _ h },
 end
 
 lemma floor_lt_irrational (x : ℝ) (h : irrational x) : ↑⌊x⌋ < x :=
 begin
-  cases ne.lt_or_lt (irrational_ne_rat ⌊x⌋ h),
-  norm_cast at *,
-  linarith [floor_le x],
-  assumption_mod_cast,
-end
-
-lemma irrational_lt_floor_add_one (x : ℝ) (h : irrational x) : x < ↑⌊x⌋ + 1 :=
-begin
-  cases ne.lt_or_lt (irrational_ne_rat (⌊x⌋ + 1) h),
-  norm_cast at *,
-  linarith,
-  linarith [lt_floor_add_one x],
+  cases lt_or_eq_of_le (floor_le x) with h2 h2,
+  { exact h2 },
+  exact false.elim (irrational_ne_rat (⌊ x ⌋) h (by exact_mod_cast h2.symm)),
 end
 
 lemma irrational.floor_mul_div_lt
 {x : ℝ} (h: irrational x) {i: ℕ} (hi : 0 < i) :
-((⌊x * i⌋ / i) : ℝ) < x
-:=
+((⌊x * i⌋ / i) : ℝ) < x :=
 begin
-   have i_ne_zero : ↑i ≠ (0 : ℚ), {
-     norm_cast,
-     linarith,
-   },
-  suffices : irrational (x * i),
-    have := floor_lt_irrational _ this,
-  have i_pos_real: (0 : ℝ ) < i,
-    exact_mod_cast hi,
-  have := div_lt_div_of_lt i_pos_real this,
-  rw [mul_div_assoc, div_self, mul_one] at this,
-  assumption_mod_cast,
-  exact_mod_cast i_ne_zero,
-  suffices : irrational (x * (i :ℚ)),
-   exact_mod_cast this,
-  apply irrational.mul_rat h,
-  exact_mod_cast i_ne_zero,
+  rw div_lt_iff (show 0 < (i : ℝ), by assumption_mod_cast),
+  apply floor_lt_irrational,
+  convert irrational.mul_rat h (show (i : ℚ) ≠ 0, by exact_mod_cast (ne_of_lt hi).symm) using 2,
+  norm_cast,
 end
 
 lemma irrational.floor_mul_add_one_div_lt
@@ -234,22 +203,8 @@ lemma irrational.floor_mul_add_one_div_lt
 x < ((⌊x * i⌋ + 1) : ℝ) / (i : ℝ)
 :=
 begin
-   have i_ne_zero : ↑i ≠ (0 : ℚ), {
-     norm_cast,
-     linarith,
-   },
-  suffices : irrational (x * i),
-    have := irrational_lt_floor_add_one _ this,
-  have i_pos_real: (0 : ℝ ) < i,
-    exact_mod_cast hi,
-  have := div_lt_div_of_lt i_pos_real this,
-  rw [mul_div_assoc, div_self, mul_one] at this,
-  assumption_mod_cast,
-  exact_mod_cast i_ne_zero,
-  suffices : irrational (x * (i :ℚ)),
-   exact_mod_cast this,
-  apply irrational.mul_rat h,
-  exact_mod_cast i_ne_zero,
+  rw lt_div_iff (show 0 < (i : ℝ), by assumption_mod_cast),
+  exact lt_floor_add_one _,
 end
 
 theorem no_rat_between  (A : ℤ) (q : ℚ) (l: (A / q.denom : ℚ) < q) (r: q < ((A +1) / q.denom : ℚ))
@@ -257,10 +212,10 @@ theorem no_rat_between  (A : ℤ) (q : ℚ) (l: (A / q.denom : ℚ) < q) (r: q <
 begin
   nth_rewrite 1 ←rat.num_div_denom q at l,
   nth_rewrite 0 ←rat.num_div_denom q at r,
-  have l' := (mul_lt_mul_right _).mp ((div_lt_div_iff _ _).mp l),
-  have r' := (mul_lt_mul_right _).mp ((div_lt_div_iff _ _).mp r),
-  repeat { norm_cast, exact q.pos },
+  have h : (0 : ℚ) < q.denom := by exact_mod_cast q.pos,
+  have l' := (mul_lt_mul_right h).mp ((div_lt_div_iff h h).mp l),
   norm_cast at l',
+  have r' := (mul_lt_mul_right h).mp ((div_lt_div_iff h h).mp r),
   norm_cast at r',
   linarith,
 end
@@ -283,89 +238,71 @@ begin
     (delta_f_indices_nonempty _ r_add_one_pos)
     with ⟨n, ⟨n_pos, n_le_r_plus_1⟩, n_min_indice⟩,
 
-  use delta_f x h n,
+  refine ⟨delta_f x h n, delta_f_pos h n_pos, λ x₁ hx₁, _⟩,
+  by_cases H : ∃ q : ℚ, (q : ℝ) = x₁,
+  { rcases H with ⟨q, rfl⟩,
+    norm_cast,
 
-  constructor,
+    rw abs_of_pos (thomae_rat_pos q),
 
-  exact delta_f_pos h n_pos,
-
-  {
-    intros x₁ hx₁,
-
-    by_cases H : irrational x₁,
-
+    have : (r + 1) ≤ (thomae_rat q).denom,
     {
-      rw thomaes_at_irrational_eq_zero H,
-      norm_num,
-      assumption,
-    },
-
-    {
-      unfold irrational at H,
+      by_contradiction H,
       push_neg at H,
-      cases H with q q_eq_x,
-      subst q_eq_x,
-      norm_cast,
 
-      rw abs_of_pos (thomae_rat_pos q),
+      have lt_delta_of_q := lt_of_lt_of_le hx₁ (n_min_indice (thomae_rat q).denom ⟨(thomae_rat q).pos, le_of_lt H⟩),
 
-      have : (r + 1) ≤ (thomae_rat q).denom,
-      {
-        by_contradiction H,
-        push_neg at H,
+      unfold delta_f at lt_delta_of_q,
+      norm_num at lt_delta_of_q,
+      rcases lt_delta_of_q with ⟨ldelta, rdelta⟩,
 
-        have lt_delta_of_q := lt_of_lt_of_le hx₁ (n_min_indice (thomae_rat q).denom ⟨(thomae_rat q).pos, le_of_lt H⟩),
-
-        unfold delta_f at lt_delta_of_q,
-        norm_num at lt_delta_of_q,
-        rcases lt_delta_of_q with ⟨ldelta, rdelta⟩,
-
-        have AA : x - ↑(⌊ x *  (thomae_rat q).denom⌋) / ↑((thomae_rat q).denom) > 0, {
-          linarith [irrational.floor_mul_div_lt h (thomae_rat q).pos],
-        },
-        have BB : x - (↑⌊ x *  (thomae_rat q).denom⌋ + 1) / ↑((thomae_rat q).denom) < 0, {
-          linarith [irrational.floor_mul_add_one_div_lt h (thomae_rat q).pos],
-        },
-
-        nth_rewrite 0 abs_of_pos AA at ldelta,
-        nth_rewrite 0 abs_of_neg BB at rdelta,
-        have l := abs_lt.mp ldelta,
-        have r := abs_lt.mp rdelta,
-        simp at r,
-        simp at l,
-        apply no_rat_between (⌊ x * (thomae_rat q).denom⌋) q,
-        {
-          norm_cast,
-          have := l.1,
-          norm_cast at this,
-          rw thomae_rat_denom at this,
-          rw thomae_rat_denom,
-          exact this,
-        },
-        {
-          norm_cast,
-          have := r.2,
-          norm_cast at this,
-          rw thomae_rat_denom at this,
-          rw thomae_rat_denom,
-          exact this,
-        },
+      have AA : x - ↑(⌊ x *  (thomae_rat q).denom⌋) / ↑((thomae_rat q).denom) > 0, {
+        linarith [irrational.floor_mul_div_lt h (thomae_rat q).pos],
       },
-      suffices : ((thomae_rat q) :ℝ) ≤ (((1 / (r + 1)) :ℚ) :ℝ),
-        calc ((thomae_rat q) :ℝ) ≤ (((1 / (r + 1)) :ℚ) :ℝ) : this
-        ... < ε : by { push_cast, exact hr },
-      norm_cast,
-      apply rat.le_def'.mpr,
-      simp [
-        thomae_rat_num,
-        num_inv_nat,
-        denom_inv_nat
-      ],
-      norm_cast,
-      rw [num_inv_nat, denom_inv_nat],
-      simp,
-      linarith,
-      repeat { exact r_add_one_pos },
+      have BB : x - (↑⌊ x *  (thomae_rat q).denom⌋ + 1) / ↑((thomae_rat q).denom) < 0, {
+        linarith [irrational.floor_mul_add_one_div_lt h (thomae_rat q).pos],
+      },
+
+      nth_rewrite 0 abs_of_pos AA at ldelta,
+      nth_rewrite 0 abs_of_neg BB at rdelta,
+      have l := abs_lt.mp ldelta,
+      have r := abs_lt.mp rdelta,
+      simp at r,
+      simp at l,
+      apply no_rat_between (⌊ x * (thomae_rat q).denom⌋) q,
+      {
+        norm_cast,
+        have := l.1,
+        norm_cast at this,
+        rw thomae_rat_denom at this,
+        rw thomae_rat_denom,
+        exact this,
+      },
+      {
+        norm_cast,
+        have := r.2,
+        norm_cast at this,
+        rw thomae_rat_denom at this,
+        rw thomae_rat_denom,
+        exact this,
+      },
     },
+    suffices : ((thomae_rat q) :ℝ) ≤ (((1 / (r + 1)) :ℚ) :ℝ),
+      calc ((thomae_rat q) :ℝ) ≤ (((1 / (r + 1)) :ℚ) :ℝ) : this
+      ... < ε : by { push_cast, exact hr },
+    norm_cast,
+    apply rat.le_def'.mpr,
+    simp [
+      thomae_rat_num,
+      num_inv_nat,
+      denom_inv_nat
+    ],
+    norm_cast,
+    rw [num_inv_nat, denom_inv_nat],
+    simp,
+    linarith,
+    repeat { exact r_add_one_pos },
   },
+  { rw thomaes_at_irrational_eq_zero H,
+    simpa using ε_pos },
 end

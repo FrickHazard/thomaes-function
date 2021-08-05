@@ -106,96 +106,24 @@ end
 theorem thomaes_is_perodic (n : ℤ) (x  : ℝ) : thomaes_function (x + n) = thomaes_function x  :=
 begin
   by_cases (irrational x),
-  {
-    rw thomaes_at_irrational_eq_zero (irrational.add_int n h),
-    rw thomaes_at_irrational_eq_zero h,
-  },
-  {
-    unfold irrational at h,
-    push_neg at h,
-    cases h with q q_eq_x,
-    subst q_eq_x,
-    norm_cast,
-    apply rat.eq_iff_mul_eq_mul.mpr,
-    simp [thomae_rat_num, thomae_rat_denom],
-    symmetry,
-    exact rat.add_int_denom _ _,
-  }
-end
-
-lemma irrational_btwn_int (x : ℝ) (h : irrational x) : ↑⌊x⌋ < x ∧ x < ↑⌊x⌋ + 1 :=
-begin
-  have := (irrational_iff_ne_rational x).mp h (floor x) 1,
-  simp at this,
-  constructor,
-  cases ne.lt_or_lt this,
-  linarith [floor_le x],
-  assumption,
-  cases ne.lt_or_lt this,
-  linarith,
-  linarith [lt_floor_add_one x],
-end
-
-noncomputable def k_of_i (x : ℝ) (h: irrational x) : ℕ → ℤ := λ i, ⌊x * i⌋
-
-lemma asdfasdf (z : ℤ) (h: z ≠ 0): rat.mk z z = 1 := begin
-  rw rat.mk_eq_div z z,
-  rw ←rat.coe_int_div_self z,
-  rw int.div_self,
+  rw [
+    thomaes_at_irrational_eq_zero (irrational.add_int n h),
+    thomaes_at_irrational_eq_zero h
+  ],
+  unfold irrational at h,
+  push_neg at h,
+  cases h with q q_eq_x,
+  subst q_eq_x,
   norm_cast,
-  assumption,
-end
-lemma here1124 (a: ℝ) (b: ℤ) (h: b ≠ 0): (a  * b) / b = a :=
-begin
-  rw mul_div_right_comm,
-  rw mul_comm_div',
-  norm_cast,
-  rw asdfasdf b h,
-  simp,
-end
-
-theorem k_of_i_fact (x : ℝ) (h: irrational x) :
-∀ (i : ℕ), 0 < i → ((↑ (k_of_i x h i) / (i : ℝ) < x) ∧ (x <  (↑(k_of_i x h i) + 1) / (i :ℝ)))
-:=
-begin
-   intros i i_pos,
-   unfold k_of_i,
-   have : ↑i ≠ (0 : ℚ), {
-     norm_cast,
-     linarith [i_pos],
-   },
-   have := irrational.mul_rat h this,
-   have btwn_h:= irrational_btwn_int _ this,
-   clear this,
-
-   have fact: (x * (i : ℤ)) / (i :ℤ) = x, {
-    apply here1124,
-    have : ↑i ≠ (0 : ℤ), {
-     norm_cast,
-     linarith [i_pos],
-    },
-    assumption,
-  },
-
-   simp at fact,
-
-   norm_cast at btwn_h,
-   have i_pos_real: (0 : ℝ ) < i,
-   { norm_cast, assumption },
-   constructor,
-
-   have := div_lt_div_of_lt i_pos_real btwn_h.1,
-   rw fact at this,
-   assumption,
-   clear this,
-   have := div_lt_div_of_lt i_pos_real btwn_h.2,
-   rw fact at this,
-   simp at this,
-   assumption,
+  apply rat.eq_iff_mul_eq_mul.mpr,
+  simp [thomae_rat_num, thomae_rat_denom],
+  symmetry,
+  exact rat.add_int_denom _ _,
 end
 
 noncomputable def delta_f (x : ℝ) (h : irrational x) : ℕ → ℝ :=
-(λ (i :ℕ), min (|x - ((k_of_i x h i) / (i :ℝ))|) (|x - (((k_of_i x h i) + 1) / (i :ℝ))|))
+λ (i :ℕ), min (|x - ⌊x * i⌋ / (i :ℝ)|)
+  (|x - (⌊x * i⌋ + 1) / (i :ℝ)|)
 
 theorem delta_f_indices_nonempty (n : ℕ) (h: n > 0) : { i : ℕ | 0 < i ∧ i ≤ n}.nonempty :=
 begin
@@ -204,6 +132,7 @@ begin
   exact zero_lt_one,
   linarith,
 end
+
 theorem delta_f_indices_finite (n : ℕ) (h: n > 0) : { i : ℕ | 0 < i ∧ i ≤ n}.finite :=
 begin
   have succ_fin := set.finite.image nat.succ (set.finite_lt_nat n),
@@ -231,8 +160,7 @@ begin
   }
 end
 
-
-theorem irrational_ne_rat (x: ℝ) (q : ℚ) (h: irrational x) : x ≠ q :=
+theorem irrational_ne_rat {x: ℝ} (q : ℚ) (h: irrational x) : x ≠ q :=
 begin
   unfold irrational at h,
   intro x_eq_q,
@@ -240,6 +168,21 @@ begin
   use q,
   exact eq.symm x_eq_q,
 end
+
+theorem delta_f_pos {x : ℝ} (h : irrational x) {n : ℕ} (n_pos : n > 0)
+: delta_f x h n > 0 :=
+begin
+  unfold delta_f,
+  norm_num,
+  constructor,
+  suffices : x ≠ ((⌊x * ↑n⌋ / n) : ℚ),
+    exact_mod_cast sub_ne_zero.mpr this,
+    exact irrational_ne_rat _ h,
+  suffices : x ≠ (((⌊x * ↑n⌋ + 1) / n) : ℚ),
+    exact_mod_cast sub_ne_zero.mpr this,
+    exact irrational_ne_rat _ h,
+end
+
 
 
 theorem no_rat_between  (A : ℤ) (q : ℚ) (l: (A / q.denom : ℚ) < q) (r: q < ((A +1) / q.denom : ℚ))
@@ -277,30 +220,7 @@ begin
 
   constructor,
   {
-    unfold delta_f,
-    unfold k_of_i,
-    apply lt_min, {
-      suffices H: ↑⌊x * ↑n⌋ / ↑n ≠ x,
-      norm_num,
-      intro h₁,
-      apply H,
-      linarith,
-      symmetry,
-      norm_cast,
-      apply irrational_ne_rat,
-      exact h,
-    },
-    {
-      suffices H: (↑⌊x * ↑n⌋ + 1) / ↑n ≠ x,
-      norm_num,
-      intro h₁,
-      apply H,
-      linarith,
-      symmetry,
-      norm_cast,
-      apply irrational_ne_rat,
-      exact h,
-    }
+    exact delta_f_pos h hn₁.1,
   },
   {
     intros x₁ hx₁,

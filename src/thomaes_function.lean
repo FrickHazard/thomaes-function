@@ -102,34 +102,24 @@ begin
   exact_mod_cast q.cop,
 end
 
-theorem thomaes_is_perodic (n : ℤ) (x  : ℝ) : thomaes_function x = thomaes_function (x + n) :=
+--@[simp]
+theorem thomaes_is_perodic (n : ℤ) (x  : ℝ) : thomaes_function (x + n) = thomaes_function x  :=
 begin
-  by_cases (irrational x), {
+  by_cases (irrational x),
+  {
     rw thomaes_at_irrational_eq_zero (irrational.add_int n h),
     rw thomaes_at_irrational_eq_zero h,
-  }, {
+  },
+  {
     unfold irrational at h,
     push_neg at h,
     cases h with q q_eq_x,
     subst q_eq_x,
-    by_cases q = 0,
-    subst h,
-    simp,
-    rw [←int.cast_zero, thomas_int_eq_one 0, thomas_int_eq_one n],
-    rw thomaes_rat_ne_zero_eq_one_over,
-    rotate,
-    assumption,
-    cases thomaes_pos_input_num_eq_one (q + n) with q₁ hq₁,
     norm_cast,
-    rw ←hq₁.1,
-    apply congr_arg,
     apply rat.eq_iff_mul_eq_mul.mpr,
-    rw hq₁.2.2,
-    rw hq₁.2.1,
-    rw mk_pnat_num_one_denom_eq,
-    rw mk_pnat_num_one_num_eq_one,
-    simp,
-    exact rat_add_int_denom_eq,
+    simp [thomae_rat_num, thomae_rat_denom],
+    symmetry,
+    exact rat.add_int_denom _ _,
   }
 end
 

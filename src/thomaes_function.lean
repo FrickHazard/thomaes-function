@@ -63,21 +63,17 @@ begin
 end
 
 lemma thomae_rat_num (q : ℚ) : (thomae_rat q).num = 1 :=
-by simp [thomae_rat, num_inv_nat q.pos ]
+  by simp [thomae_rat, num_inv_nat q.pos ]
 
 lemma thomae_rat_denom (q : ℚ) : (thomae_rat q).denom = q.denom :=
-begin
-  simp [thomae_rat, denom_inv_nat q.pos],
-end
+  by simp [thomae_rat, denom_inv_nat q.pos]
 
 lemma int_not_irrational  (z : ℤ): ¬irrational z :=
   by exact_mod_cast rat.not_irrational (z :ℚ)
 
--- if you prove the theorem for the rat function first...
 theorem thomae_rat_int_eq_one (z : ℤ) : thomae_rat z = 1 :=
-by simp [thomae_rat]
+  by simp [thomae_rat]
 
--- ...then the theorem for the real function is easy!
 theorem thomas_int_eq_one (z : ℤ): thomaes_function z = 1 := begin
   suffices : thomaes_function (z : ℚ) = 1,
     convert this using 2, norm_cast,
@@ -86,37 +82,24 @@ end
 
 theorem irrational.add_int (z : ℤ) {x : ℝ} (h : irrational x) :
 irrational (x + ↑z) :=
-by exact_mod_cast irrational.add_rat z h
+  by exact_mod_cast irrational.add_rat z h
 
--- I'm up to here. Do you want to take over? There's still a few
--- errors I'm afraid
-
-theorem rat_add_int_denom_eq (z: ℤ) (q : ℚ) : (q + z).denom = q.denom :=
+-- add to rat library?
+theorem rat.add_int_denom (z: ℤ) (q : ℚ) : (q + z).denom = q.denom :=
 begin
-  have := q.4,
-  rw ←int.nat_abs_of_nat q.denom at this,
-  rw ←int.coprime_iff_nat_coprime at this,
-  have := is_coprime.add_mul_left_left this z,
-
-  rw int.coprime_iff_nat_coprime at this,
-  rw int.nat_abs_of_nat q.denom at this,
-
-  have := @rat.num_denom' (q.num + ↑(q.denom) * z) q.denom q.3 this,
-  simp_rw int.mul_comm ↑(q.denom) z at this,
-
-  rw rat.coe_int_eq_mk z,
--- TODO surely this exists
-  have AA : q = rat.mk q.num q.denom , {
-    apply rat.eq_iff_mul_eq_mul.mpr,
-    simp,
-  },
-  rw AA,
-  rw rat.add_def,
+  rw rat.add_num_denom,
   simp,
-  simp_rw ←this,
-  norm_cast,
-  linarith [q.3],
-  linarith,
+  rw rat.mk_eq_div,
+  -- I copied this trick from above
+  suffices :(((((q.num + ↑(q.denom) * z) : ℤ) : ℚ) / ((q.denom) : ℤ)).denom : ℤ) = q.denom,
+    exact_mod_cast this,
+  apply denom_div_eq_of_coprime,
+  exact_mod_cast q.pos,
+  -- Question here apply a list of things?
+  apply int.coprime_iff_nat_coprime.mp,
+  apply is_coprime.add_mul_left_left,
+  apply int.coprime_iff_nat_coprime.mpr,
+  exact_mod_cast q.cop,
 end
 
 theorem thomaes_is_perodic (n : ℤ) (x  : ℝ) : thomaes_function x = thomaes_function (x + n) :=

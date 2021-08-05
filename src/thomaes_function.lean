@@ -205,36 +205,49 @@ begin
   linarith,
   linarith [lt_floor_add_one x],
 end
--- todo change into two lemmas for each side
-lemma irrational.floor_over_nat_lt (x : ℝ) (h: irrational x) :
-∀ (i : ℕ), 0 < i → ((⌊x * i⌋:ℝ ) / (i : ℝ)) < x ∧ (x <  ((⌊x * i⌋ + 1) :ℝ) / (i :ℝ))
+
+lemma irrational.floor_mul_div_lt
+{x : ℝ} (h: irrational x) {i: ℕ} (hi : 0 < i) :
+((⌊x * i⌋ / i) : ℝ) < x
 :=
 begin
-   intros i i_pos,
    have i_ne_zero : ↑i ≠ (0 : ℚ), {
      norm_cast,
-     linarith [i_pos],
+     linarith,
    },
-   suffices : irrational (x * (i :ℚ)),
-    have btwn_left := floor_lt_irrational _ this,
-    have btwn_right := irrational_lt_floor_add_one _ this,
-
-   norm_cast at btwn_left,
-   norm_cast at btwn_right,
-   have i_pos_real: (0 : ℝ ) < i,
-   { norm_cast, assumption },
-   constructor,
-
-  have := div_lt_div_of_lt i_pos_real btwn_left,
+  suffices : irrational (x * i),
+    have := floor_lt_irrational _ this,
+  have i_pos_real: (0 : ℝ ) < i,
+    exact_mod_cast hi,
+  have := div_lt_div_of_lt i_pos_real this,
   rw [mul_div_assoc, div_self, mul_one] at this,
   assumption_mod_cast,
   exact_mod_cast i_ne_zero,
+  suffices : irrational (x * (i :ℚ)),
+   exact_mod_cast this,
+  apply irrational.mul_rat h,
+  exact_mod_cast i_ne_zero,
+end
 
-  have := div_lt_div_of_lt i_pos_real btwn_right,
+lemma irrational.floor_mul_add_one_div_lt
+{x : ℝ} (h: irrational x) {i: ℕ} (hi : 0 < i) :
+x < ((⌊x * i⌋ + 1) : ℝ) / (i : ℝ)
+:=
+begin
+   have i_ne_zero : ↑i ≠ (0 : ℚ), {
+     norm_cast,
+     linarith,
+   },
+  suffices : irrational (x * i),
+    have := irrational_lt_floor_add_one _ this,
+  have i_pos_real: (0 : ℝ ) < i,
+    exact_mod_cast hi,
+  have := div_lt_div_of_lt i_pos_real this,
   rw [mul_div_assoc, div_self, mul_one] at this,
   assumption_mod_cast,
   exact_mod_cast i_ne_zero,
-
+  suffices : irrational (x * (i :ℚ)),
+   exact_mod_cast this,
   apply irrational.mul_rat h,
   exact_mod_cast i_ne_zero,
 end
@@ -252,11 +265,11 @@ begin
   linarith,
 end
 
-theorem thomaes_fact : ∀ x, irrational x → continuous_at thomaes_function x :=
+theorem thomaes_continous_at_irrational {x} (h : irrational x)
+: continuous_at thomaes_function x :=
 begin
-  intros x h,
   apply metric.continuous_at_iff.mpr,
-  simp_rw [real.dist_eq , thomaes_at_irrational_eq_zero h, sub_zero],
+  simp_rw [real.dist_eq, thomaes_at_irrational_eq_zero h, sub_zero],
   intros ε ε_pos,
   -- There exists a rational number 1 / (r+1) between epsilon and 0
   -- by the archmedian property.
@@ -301,7 +314,6 @@ begin
         by_contradiction H,
         push_neg at H,
 
-        have floor_over_nat_lt := irrational.floor_over_nat_lt x h (thomae_rat q).denom (thomae_rat q).pos,
         have lt_delta_of_q := lt_of_lt_of_le hx₁ (n_min_indice (thomae_rat q).denom ⟨(thomae_rat q).pos, le_of_lt H⟩),
 
         unfold delta_f at lt_delta_of_q,
@@ -309,10 +321,10 @@ begin
         rcases lt_delta_of_q with ⟨ldelta, rdelta⟩,
 
         have AA : x - ↑(⌊ x *  (thomae_rat q).denom⌋) / ↑((thomae_rat q).denom) > 0, {
-          linarith [floor_over_nat_lt.1],
+          linarith [irrational.floor_mul_div_lt h (thomae_rat q).pos],
         },
         have BB : x - (↑⌊ x *  (thomae_rat q).denom⌋ + 1) / ↑((thomae_rat q).denom) < 0, {
-          linarith [floor_over_nat_lt.2],
+          linarith [irrational.floor_mul_add_one_div_lt h (thomae_rat q).pos],
         },
 
         nth_rewrite 0 abs_of_pos AA at ldelta,

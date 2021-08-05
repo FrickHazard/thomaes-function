@@ -61,16 +61,16 @@ begin
   { assumption_mod_cast },
   { simp only [nat.coprime_one_left_iff, int.nat_abs_one]},
 end
-
+--@[simp]
 lemma thomae_rat_num (q : ℚ) : (thomae_rat q).num = 1 :=
   by simp [thomae_rat, num_inv_nat q.pos ]
-
+--@[simp]
 lemma thomae_rat_denom (q : ℚ) : (thomae_rat q).denom = q.denom :=
   by simp [thomae_rat, denom_inv_nat q.pos]
 
 lemma int_not_irrational  (z : ℤ): ¬irrational z :=
   by exact_mod_cast rat.not_irrational (z :ℚ)
-
+--@[simp]
 theorem thomae_rat_int_eq_one (z : ℤ) : thomae_rat z = 1 :=
   by simp [thomae_rat]
 
@@ -79,7 +79,7 @@ theorem thomae_rat_pos (q : ℚ) : 0 < (thomae_rat q) := begin
   rw thomae_rat_num,
   exact zero_lt_one,
 end
-
+--@[simp]
 theorem thomas_int_eq_one (z : ℤ): thomaes_function z = 1 := begin
   suffices : thomaes_function (z : ℚ) = 1,
     convert this using 2, norm_cast,
@@ -190,71 +190,53 @@ begin
     exact irrational_ne_rat _ h,
 end
 
-lemma rat_mk_int_one (z : ℤ) (h: z ≠ 0): rat.mk z z = 1 := begin
-  rw rat.mk_eq_div z z,
-  rw ←rat.coe_int_div_self z,
-  rw int.div_self,
-  norm_cast,
-  assumption,
-end
-lemma casting_thing_remove_me (a: ℝ) (b: ℤ) (h: b ≠ 0): (a  * b) / b = a :=
+lemma floor_lt_irrational (x : ℝ) (h : irrational x) : ↑⌊x⌋ < x :=
 begin
-  rw mul_div_right_comm,
-  rw mul_comm_div',
-  norm_cast,
-  rw rat_mk_int_one b h,
-  simp,
+  cases ne.lt_or_lt (irrational_ne_rat ⌊x⌋ h),
+  norm_cast at *,
+  linarith [floor_le x],
+  assumption_mod_cast,
 end
 
-lemma irrational_btwn_int (x : ℝ) (h : irrational x) : ↑⌊x⌋ < x ∧ x < ↑⌊x⌋ + 1 :=
+lemma irrational_lt_floor_add_one (x : ℝ) (h : irrational x) : x < ↑⌊x⌋ + 1 :=
 begin
-  have := (irrational_iff_ne_rational x).mp h (floor x) 1,
-  simp at this,
-  constructor,
-  cases ne.lt_or_lt this,
-  linarith [floor_le x],
-  assumption,
-  cases ne.lt_or_lt this,
+  cases ne.lt_or_lt (irrational_ne_rat (⌊x⌋ + 1) h),
+  norm_cast at *,
   linarith,
   linarith [lt_floor_add_one x],
 end
-theorem k_of_i_fact (x : ℝ) (h: irrational x) :
+-- todo change into two lemmas for each side
+lemma irrational.floor_over_nat_lt (x : ℝ) (h: irrational x) :
 ∀ (i : ℕ), 0 < i → ((⌊x * i⌋:ℝ ) / (i : ℝ)) < x ∧ (x <  ((⌊x * i⌋ + 1) :ℝ) / (i :ℝ))
 :=
 begin
    intros i i_pos,
-   have : ↑i ≠ (0 : ℚ), {
+   have i_ne_zero : ↑i ≠ (0 : ℚ), {
      norm_cast,
      linarith [i_pos],
    },
-   have := irrational.mul_rat h this,
-   have btwn_h:= irrational_btwn_int _ this,
-   clear this,
+   suffices : irrational (x * (i :ℚ)),
+    have btwn_left := floor_lt_irrational _ this,
+    have btwn_right := irrational_lt_floor_add_one _ this,
 
-   have fact: (x * (i : ℤ)) / (i :ℤ) = x, {
-    apply casting_thing_remove_me,
-    have : ↑i ≠ (0 : ℤ), {
-     norm_cast,
-     linarith [i_pos],
-    },
-    assumption,
-  },
-
-   simp at fact,
-
-   norm_cast at btwn_h,
+   norm_cast at btwn_left,
+   norm_cast at btwn_right,
    have i_pos_real: (0 : ℝ ) < i,
    { norm_cast, assumption },
    constructor,
 
-   have := div_lt_div_of_lt i_pos_real btwn_h.1,
-   rw fact at this,
-   assumption,
-   clear this,
-   have := div_lt_div_of_lt i_pos_real btwn_h.2,
-   rw fact at this,
-   simp at this,
-   assumption,
+  have := div_lt_div_of_lt i_pos_real btwn_left,
+  rw [mul_div_assoc, div_self, mul_one] at this,
+  assumption_mod_cast,
+  exact_mod_cast i_ne_zero,
+
+  have := div_lt_div_of_lt i_pos_real btwn_right,
+  rw [mul_div_assoc, div_self, mul_one] at this,
+  assumption_mod_cast,
+  exact_mod_cast i_ne_zero,
+
+  apply irrational.mul_rat h,
+  exact_mod_cast i_ne_zero,
 end
 
 theorem no_rat_between  (A : ℤ) (q : ℚ) (l: (A / q.denom : ℚ) < q) (r: q < ((A +1) / q.denom : ℚ))
@@ -319,7 +301,7 @@ begin
         by_contradiction H,
         push_neg at H,
 
-        have k_of_i_fact := k_of_i_fact x h (thomae_rat q).denom (thomae_rat q).pos,
+        have floor_over_nat_lt := irrational.floor_over_nat_lt x h (thomae_rat q).denom (thomae_rat q).pos,
         have lt_delta_of_q := lt_of_lt_of_le hx₁ (n_min_indice (thomae_rat q).denom ⟨(thomae_rat q).pos, le_of_lt H⟩),
 
         unfold delta_f at lt_delta_of_q,
@@ -327,10 +309,10 @@ begin
         rcases lt_delta_of_q with ⟨ldelta, rdelta⟩,
 
         have AA : x - ↑(⌊ x *  (thomae_rat q).denom⌋) / ↑((thomae_rat q).denom) > 0, {
-          linarith [k_of_i_fact.1],
+          linarith [floor_over_nat_lt.1],
         },
         have BB : x - (↑⌊ x *  (thomae_rat q).denom⌋ + 1) / ↑((thomae_rat q).denom) < 0, {
-          linarith [k_of_i_fact.2],
+          linarith [floor_over_nat_lt.2],
         },
 
         nth_rewrite 0 abs_of_pos AA at ldelta,

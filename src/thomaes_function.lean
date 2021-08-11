@@ -6,13 +6,12 @@ Authors: Ender Doe
 
 import data.real.irrational
 
-
 local notation `|` x `|` := abs x
 open_locale classical
 
-theorem not_irrational_is_rat (x: ℝ) : ¬ (irrational x) →  x ∈ set.range (coe : ℚ → ℝ) :=
-not_not.1
-
+/--
+  The thomae's function on reals also known as the "Popcorn" function.
+-/
 noncomputable def thomaes_function (r : ℝ) : ℝ :=
 if h : ∃ (q : ℚ), (q : ℝ) = r then (1 : ℝ) / (classical.some h).denom else 0
 
@@ -48,7 +47,7 @@ begin
     exact_mod_cast this,
   apply num_div_eq_of_coprime,
   { assumption_mod_cast },
-  { simp }
+  { simp only [nat.coprime_one_left_iff, int.nat_abs_one]}
 end
 
 -- so should this
@@ -127,12 +126,17 @@ begin
   exact rat.add_int_denom _ _,
 end
 
-noncomputable def delta_f (x : ℝ) (h : irrational x) : ℕ → ℝ :=
+/--
+ Intermediate def of the delta used in the proof of irrational continouty
+-/
+noncomputable def delta_f (x : ℝ) : ℕ → ℝ :=
 λ (i :ℕ), min (|x - ⌊x * i⌋ / (i :ℝ)|)
   (|x - (⌊x * i⌋ + 1) / (i :ℝ)|)
 
-theorem delta_f_indices_nonempty (n : ℕ) (h: n > 0) : { i : ℕ | 0 < i ∧ i ≤ n}.nonempty :=
+theorem delta_f_indices_nonempty {n : ℕ} (h: 0 < n) : { i : ℕ | 0 < i ∧ i ≤ n}.nonempty :=
 ⟨1, zero_lt_one, by linarith⟩
+
+-- theorem
 
 -- should be in mathlib
 lemma set.finite_Ico_nat (a b : ℕ) : (set.Ico a b).finite :=
@@ -161,14 +165,14 @@ begin
   exact and_congr nat.lt_iff_add_one_le nat.lt_succ_iff.symm
 end
 
-theorem delta_f_indices_finite (n : ℕ) (h: n > 0) : { i : ℕ | 0 < i ∧ i ≤ n}.finite :=
+theorem delta_f_indices_finite (n : ℕ) : { i : ℕ | 0 < i ∧ i ≤ n}.finite :=
 set.finite_Ioc_nat 0 n
 
 theorem irrational_ne_rat {x: ℝ} (q : ℚ) (h: irrational x) : x ≠ q :=
 λ h2, h ⟨q, h2.symm⟩
 
-theorem delta_f_pos {x : ℝ} (h : irrational x) {n : ℕ} (n_pos : n > 0)
-: delta_f x h n > 0 :=
+theorem delta_f_pos {x : ℝ} (n : ℕ) (h : irrational x)
+: 0 < delta_f x n :=
 begin
   unfold delta_f,
   simp only [abs_pos, gt_iff_lt, lt_min_iff],
@@ -199,12 +203,26 @@ begin
 end
 
 lemma irrational.floor_mul_add_one_div_lt
-{x : ℝ} (h: irrational x) {i: ℕ} (hi : 0 < i) :
+{i: ℕ} (x : ℝ) (hi : 0 < i) :
 x < ((⌊x * i⌋ + 1) : ℝ) / (i : ℝ)
 :=
 begin
   rw lt_div_iff (show 0 < (i : ℝ), by assumption_mod_cast),
   exact lt_floor_add_one _,
+end
+
+theorem delta_f_between {x: ℝ} {r : ℝ}  {n : ℕ}
+(hx0 : irrational x) (hn0 : 0 < n) (h : |r - x| < delta_f x n) :
+(⌊x * n⌋ / n : ℝ) < r ∧ r < ((⌊x * n⌋ + 1) / n : ℝ)
+:=
+begin
+  unfold delta_f at h,
+  simp only [lt_min_iff] at h,
+  rw abs_of_pos (sub_pos_of_lt (irrational.floor_mul_div_lt hx0 hn0)) at h,
+  rw abs_of_neg (sub_neg_of_lt (irrational.floor_mul_add_one_div_lt x hn0)) at h,
+  split,
+  linarith [(abs_lt.mp h.left).left],
+  linarith [(abs_lt.mp h.right).right],
 end
 
 theorem no_rat_between  (A : ℤ) (q : ℚ) (l: (A / q.denom : ℚ) < q) (r: q < ((A +1) / q.denom : ℚ))
@@ -226,82 +244,43 @@ begin
   apply metric.continuous_at_iff.mpr,
   simp_rw [real.dist_eq, thomaes_at_irrational_eq_zero h, sub_zero],
   intros ε ε_pos,
-  -- There exists a rational number 1 / (r+1) between epsilon and 0
-  -- by the archmedian property.
+
   cases (exists_nat_one_div_lt ε_pos) with r hr,
 
   have r_add_one_pos : 0 < r + 1 := nat.succ_pos r,
 
   rcases set.exists_min_image _
-    (delta_f x h)
-    (delta_f_indices_finite _ r_add_one_pos)
-    (delta_f_indices_nonempty _ r_add_one_pos)
+    (delta_f x)
+    (delta_f_indices_finite _)
+    (delta_f_indices_nonempty r_add_one_pos)
     with ⟨n, ⟨n_pos, n_le_r_plus_1⟩, n_min_indice⟩,
 
-  refine ⟨delta_f x h n, delta_f_pos h n_pos, λ x₁ hx₁, _⟩,
+  refine ⟨delta_f x n, delta_f_pos n h, λ x₁ hx₁, _⟩,
+
   by_cases H : ∃ q : ℚ, (q : ℝ) = x₁,
   { rcases H with ⟨q, rfl⟩,
     norm_cast,
 
     rw abs_of_pos (thomae_rat_pos q),
 
-    have : (r + 1) ≤ (thomae_rat q).denom,
-    {
-      by_contradiction H,
+    have r_add_one_le_q_denom : (r + 1) ≤ q.denom,
+    { by_contradiction H,
       push_neg at H,
+      have lt_delta_of_q := lt_of_lt_of_le hx₁ (n_min_indice q.denom ⟨q.pos, le_of_lt H⟩),
+      rcases delta_f_between h q.pos lt_delta_of_q with ⟨l, r⟩,
+      apply no_rat_between (⌊ x * q.denom⌋) q,
+      { exact_mod_cast l },
+      { exact_mod_cast r } },
 
-      have lt_delta_of_q := lt_of_lt_of_le hx₁ (n_min_indice (thomae_rat q).denom ⟨(thomae_rat q).pos, le_of_lt H⟩),
-
-      unfold delta_f at lt_delta_of_q,
-      norm_num at lt_delta_of_q,
-      rcases lt_delta_of_q with ⟨ldelta, rdelta⟩,
-
-      have AA : x - ↑(⌊ x *  (thomae_rat q).denom⌋) / ↑((thomae_rat q).denom) > 0, {
-        linarith [irrational.floor_mul_div_lt h (thomae_rat q).pos],
-      },
-      have BB : x - (↑⌊ x *  (thomae_rat q).denom⌋ + 1) / ↑((thomae_rat q).denom) < 0, {
-        linarith [irrational.floor_mul_add_one_div_lt h (thomae_rat q).pos],
-      },
-
-      nth_rewrite 0 abs_of_pos AA at ldelta,
-      nth_rewrite 0 abs_of_neg BB at rdelta,
-      have l := abs_lt.mp ldelta,
-      have r := abs_lt.mp rdelta,
-      simp at r,
-      simp at l,
-      apply no_rat_between (⌊ x * (thomae_rat q).denom⌋) q,
-      {
-        norm_cast,
-        have := l.1,
-        norm_cast at this,
-        rw thomae_rat_denom at this,
-        rw thomae_rat_denom,
-        exact this,
-      },
-      {
-        norm_cast,
-        have := r.2,
-        norm_cast at this,
-        rw thomae_rat_denom at this,
-        rw thomae_rat_denom,
-        exact this,
-      },
-    },
-    suffices : ((thomae_rat q) :ℝ) ≤ (((1 / (r + 1)) :ℚ) :ℝ),
+   suffices : ((thomae_rat q) :ℝ) ≤ (((1 / (r + 1)) :ℚ) :ℝ),
       calc ((thomae_rat q) :ℝ) ≤ (((1 / (r + 1)) :ℚ) :ℝ) : this
       ... < ε : by { push_cast, exact hr },
     norm_cast,
     apply rat.le_def'.mpr,
-    simp [
-      thomae_rat_num,
-      num_inv_nat,
-      denom_inv_nat
-    ],
+    simp only [thomae_rat_num, thomae_rat_denom, one_div, one_mul, nat.cast_add, nat.cast_one],
     norm_cast,
-    rw [num_inv_nat, denom_inv_nat],
-    simp,
-    linarith,
-    repeat { exact r_add_one_pos },
+    rw [num_inv_nat r_add_one_pos, denom_inv_nat r_add_one_pos, one_mul],
+    exact_mod_cast r_add_one_le_q_denom,
   },
   { rw thomaes_at_irrational_eq_zero H,
     simpa using ε_pos },

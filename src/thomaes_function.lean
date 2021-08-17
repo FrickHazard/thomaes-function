@@ -22,7 +22,7 @@ dif_neg $ h
 /-- The thomae function, restricted to the rationals and taking values in the rationals. -/
 def thomae_rat (q : ℚ) : ℚ := 1 / q.denom
 
---@[norm_cast]
+@[norm_cast]
 lemma coe_thomae_rat (q : ℚ) : thomaes_function q = thomae_rat q :=
 begin
   unfold thomaes_function,
@@ -34,7 +34,7 @@ begin
     exact_mod_cast classical.some_spec h },
 end
 
-@[norm_cast] lemma coe_rhomae_rat' (q : ℚ) : (thomae_rat q : ℝ) = thomaes_function q :=
+@[norm_cast] lemma coe_thomae_rat' (q : ℚ) : (thomae_rat q : ℝ) = thomaes_function q :=
 (coe_thomae_rat q).symm
 
 open rat
@@ -284,4 +284,74 @@ begin
   },
   { rw thomaes_at_irrational_eq_zero H,
     simpa using ε_pos },
+end
+
+-- TODO math Lib
+lemma one_lt_sqrt_two : 1 < real.sqrt 2 :=
+begin
+  refine (real.lt_sqrt zero_le_one (zero_le_bit0.mpr zero_le_one)).mpr _,
+  rw [one_pow],
+  exact one_lt_two,
+end
+-- TODO math Lib
+lemma exists_irrational_btwn_rats {x y :ℚ} (h : (x :ℝ) < y) :
+∃ (r : ℝ), irrational r ∧ (x : ℝ) < r ∧ r < y:=
+begin
+  use x + ((y - x) : ℚ) * (real.sqrt 2)⁻¹,
+  split,
+  { apply irrational.rat_add,
+    apply irrational.rat_mul,
+    exact irrational_inv_iff.mpr irrational_sqrt_two,
+    exact_mod_cast  (ne_of_gt (sub_pos_of_lt h)),
+  },
+  split, {
+    suffices : 0 < ↑(y - x) * (real.sqrt 2)⁻¹,
+      linarith,
+    refine (zero_lt_mul_right _).mpr _,
+    apply inv_pos.mpr,
+    norm_num,
+    exact_mod_cast (sub_pos_of_lt h),
+  }, {
+    apply (sub_lt_sub_iff_right (x :ℝ)).mp,
+    simp only [add_sub_cancel', cast_sub],
+    norm_cast,
+    refine (mul_lt_iff_lt_one_right _).mpr
+      (inv_lt_one one_lt_sqrt_two),
+    exact_mod_cast  (sub_pos_of_lt h),
+  }
+end
+-- TODO Mathlib
+theorem exists_irrational_btwn {x y :ℝ} (h : x < y) :
+∃ (r : ℝ), irrational r ∧ x < r ∧ r < y:=
+begin
+  rcases exists_rat_btwn h with ⟨q₁, ⟨x_lt_q₁,  q₁_lt_y⟩⟩,
+  rcases exists_rat_btwn q₁_lt_y with ⟨q₂, ⟨q₁_lt_q₂, q₂_lt_y⟩⟩,
+  rcases exists_irrational_btwn_rats q₁_lt_q₂ with ⟨r, ⟨irrational_r, q₁_lt_r, r_lt_q₂⟩⟩,
+  use r,
+  refine ⟨irrational_r, lt_trans x_lt_q₁ q₁_lt_r, lt_trans r_lt_q₂ q₂_lt_y⟩,
+end
+
+theorem thomaes_discontinous_at_rational (q :ℚ)
+: ¬continuous_at thomaes_function q :=
+begin
+  intro h,
+  simp only [metric.continuous_at_iff] at h,
+  norm_cast at h,
+  specialize h
+    (thomae_rat q)
+    (by exact_mod_cast (thomae_rat_pos q)),
+  rcases h with ⟨δ, δ_pos, hδ⟩,
+  simp_rw real.dist_eq at hδ,
+
+  rcases exists_irrational_btwn δ_pos with ⟨r, ⟨r_irrat, r_pos, r_lt_δ⟩⟩ ,
+
+  specialize hδ (show |(r + q) - q| < δ, by simpa [abs_of_pos r_pos]),
+
+  rw [
+    thomaes_at_irrational_eq_zero (irrational.add_rat q r_irrat)
+  ] at hδ,
+  simp only [zero_sub, abs_neg] at hδ,
+  rw abs_of_pos _ at hδ,
+  linarith,
+  exact_mod_cast (thomae_rat_pos q),
 end

@@ -293,32 +293,28 @@ begin
   rw [one_pow],
   exact one_lt_two,
 end
--- TODO math Lib
+
 lemma exists_irrational_btwn_rats {x y :ℚ} (h : (x :ℝ) < y) :
 ∃ (r : ℝ), irrational r ∧ (x : ℝ) < r ∧ r < y:=
 begin
   use x + ((y - x) : ℚ) * (real.sqrt 2)⁻¹,
-  split,
-  { apply irrational.rat_add,
-    apply irrational.rat_mul,
-    exact irrational_inv_iff.mpr irrational_sqrt_two,
-    exact_mod_cast  (ne_of_gt (sub_pos_of_lt h)),
-  },
+  split, {
+    refine irrational.rat_add _
+      (irrational.rat_mul
+        (irrational_inv_iff.mpr irrational_sqrt_two) _),
+    exact_mod_cast (ne_of_gt (sub_pos_of_lt h)) },
   split, {
     suffices : 0 < ↑(y - x) * (real.sqrt 2)⁻¹,
       linarith,
     refine (zero_lt_mul_right _).mpr _,
     apply inv_pos.mpr,
     norm_num,
-    exact_mod_cast (sub_pos_of_lt h),
-  }, {
-    apply (sub_lt_sub_iff_right (x :ℝ)).mp,
-    simp only [add_sub_cancel', cast_sub],
-    norm_cast,
+    exact_mod_cast (sub_pos_of_lt h)},
+  { apply (sub_lt_sub_iff_right (x :ℝ)).mp,
+    rw [add_sub_cancel', ←cast_sub],
     refine (mul_lt_iff_lt_one_right _).mpr
       (inv_lt_one one_lt_sqrt_two),
-    exact_mod_cast  (sub_pos_of_lt h),
-  }
+    exact_mod_cast  (sub_pos_of_lt h) }
 end
 -- TODO Mathlib
 theorem exists_irrational_btwn {x y :ℝ} (h : x < y) :

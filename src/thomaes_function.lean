@@ -1,7 +1,7 @@
 /-
 Copyright (c) 2015, 2017 Ender Doe. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Ender Doe
+Authors: Ender Doe, Kevin Buzzard
 -/
 
 import data.real.irrational
@@ -129,14 +129,11 @@ end
 /--
  Intermediate def of the delta used in the proof of irrational continouty
 -/
-noncomputable def delta_f (x : ℝ) : ℕ → ℝ :=
-λ (i :ℕ), min (|x - ⌊x * i⌋ / (i :ℝ)|)
-  (|x - (⌊x * i⌋ + 1) / (i :ℝ)|)
+-- noncomputable def δᵢ : ℝ → ℕ → ℝ :=
+-- λ x i, min (|x - ⌊x * i⌋ / (i :ℝ)|)  (|x - (⌊x * i⌋ + 1) / (i :ℝ)|)
 
-theorem delta_f_indices_nonempty {n : ℕ} (h: 0 < n) : { i : ℕ | 0 < i ∧ i ≤ n}.nonempty :=
+theorem δᵢ_indices_nonempty {n : ℕ} (h: 0 < n) : { i : ℕ | 0 < i ∧ i ≤ n}.nonempty :=
 ⟨1, zero_lt_one, by linarith⟩
-
--- theorem
 
 -- should be in mathlib
 lemma set.finite_Ico_nat (a b : ℕ) : (set.Ico a b).finite :=
@@ -165,22 +162,21 @@ begin
   exact and_congr nat.lt_iff_add_one_le nat.lt_succ_iff.symm
 end
 
-theorem delta_f_indices_finite (n : ℕ) : { i : ℕ | 0 < i ∧ i ≤ n}.finite :=
+theorem δᵢ_indices_finite (n : ℕ) : { i : ℕ | 0 < i ∧ i ≤ n}.finite :=
 set.finite_Ioc_nat 0 n
 
 theorem irrational_ne_rat {x: ℝ} (q : ℚ) (h: irrational x) : x ≠ q :=
 λ h2, h ⟨q, h2.symm⟩
 
-theorem delta_f_pos {x : ℝ} (n : ℕ) (h : irrational x)
-: 0 < delta_f x n :=
+theorem δᵢ_pos {x : ℝ} (i : ℕ) (h : irrational x)
+: 0 < min (|x - ⌊x * i⌋ / (i :ℝ)|)  (|x - (⌊x * i⌋ + 1) / (i :ℝ)|) :=
 begin
-  unfold delta_f,
   simp only [abs_pos, gt_iff_lt, lt_min_iff],
   split,
-  { suffices : x ≠ ((⌊x * ↑n⌋ / n) : ℚ),
+  { suffices : x ≠ ((⌊x * ↑i⌋ / i) : ℚ),
     exact_mod_cast sub_ne_zero.mpr this,
     exact irrational_ne_rat _ h },
-  { suffices : x ≠ (((⌊x * ↑n⌋ + 1) / n) : ℚ),
+  { suffices : x ≠ (((⌊x * ↑i⌋ + 1) / i) : ℚ),
     exact_mod_cast sub_ne_zero.mpr this,
     exact irrational_ne_rat _ h },
 end
@@ -211,12 +207,12 @@ begin
   exact lt_floor_add_one _,
 end
 
-theorem delta_f_between {x: ℝ} {r : ℝ}  {n : ℕ}
-(hx0 : irrational x) (hn0 : 0 < n) (h : |r - x| < delta_f x n) :
-(⌊x * n⌋ / n : ℝ) < r ∧ r < ((⌊x * n⌋ + 1) / n : ℝ)
+theorem δᵢ_between {x: ℝ} {r : ℝ}  {i : ℕ}
+(hx0 : irrational x) (hn0 : 0 < i)
+(h : |r - x| < min (|x - ⌊x * i⌋ / (i :ℝ)|)  (|x - (⌊x * i⌋ + 1) / (i :ℝ)|)) :
+(⌊x * i⌋ / i : ℝ) < r ∧ r < ((⌊x * i⌋ + 1) / i : ℝ)
 :=
 begin
-  unfold delta_f at h,
   simp only [lt_min_iff] at h,
   rw abs_of_pos (sub_pos_of_lt (irrational.floor_mul_div_lt hx0 hn0)) at h,
   rw abs_of_neg (sub_neg_of_lt (irrational.floor_mul_add_one_div_lt x hn0)) at h,
@@ -244,34 +240,35 @@ begin
   apply metric.continuous_at_iff.mpr,
   simp_rw [real.dist_eq, thomaes_at_irrational_eq_zero h, sub_zero],
   intros ε ε_pos,
-
-  cases (exists_nat_one_div_lt ε_pos) with r hr,
-
+  obtain ⟨r, hr⟩ := exists_nat_one_div_lt ε_pos,
   have r_add_one_pos : 0 < r + 1 := nat.succ_pos r,
 
-  rcases set.exists_min_image _
-    (delta_f x)
-    (delta_f_indices_finite _)
-    (delta_f_indices_nonempty r_add_one_pos)
-    with ⟨n, ⟨n_pos, n_le_r_plus_1⟩, n_min_indice⟩,
+  set δᵢ := λ (x :ℝ) (i :ℕ), min (|x - ⌊x * i⌋ / (i :ℝ)|)  (|x - (⌊x * i⌋ + 1) / (i :ℝ)|),
 
-  refine ⟨delta_f x n, delta_f_pos n h, λ x₁ hx₁, _⟩,
+  obtain ⟨i_min, ⟨i_pos, i_le_r⟩, i_min_indice⟩ :=
+    set.exists_min_image _
+    (δᵢ x)
+    (δᵢ_indices_finite _)
+    (δᵢ_indices_nonempty r_add_one_pos),
+
+  refine ⟨δᵢ x i_min, δᵢ_pos i_min h, λ x₁ hδ, _⟩,
 
   by_cases H : ∃ q : ℚ, (q : ℝ) = x₁,
   { rcases H with ⟨q, rfl⟩,
     norm_cast,
 
     rw abs_of_pos (thomae_rat_pos q),
-
+    -- TODO more simplification and golfing
+    -- simp  [thomae_rat],
     have r_add_one_le_q_denom : (r + 1) ≤ q.denom,
     { by_contradiction H,
       push_neg at H,
-      have lt_delta_of_q := lt_of_lt_of_le hx₁ (n_min_indice q.denom ⟨q.pos, le_of_lt H⟩),
-      rcases delta_f_between h q.pos lt_delta_of_q with ⟨l, r⟩,
+      have lt_delta_of_q := lt_of_lt_of_le hδ (i_min_indice q.denom ⟨q.pos, le_of_lt H⟩),
+      obtain ⟨l, r⟩ := δᵢ_between h q.pos lt_delta_of_q,
       apply no_rat_between (⌊ x * q.denom⌋) q,
       { exact_mod_cast l },
       { exact_mod_cast r } },
-
+   -- TODO dumb casting stuff should be removed!!
    suffices : ((thomae_rat q) :ℝ) ≤ (((1 / (r + 1)) :ℚ) :ℝ),
       calc ((thomae_rat q) :ℝ) ≤ (((1 / (r + 1)) :ℚ) :ℝ) : this
       ... < ε : by { push_cast, exact hr },
@@ -290,7 +287,7 @@ end
 lemma one_lt_sqrt_two : 1 < real.sqrt 2 :=
 begin
   refine (real.lt_sqrt zero_le_one (zero_le_bit0.mpr zero_le_one)).mpr _,
-  rw [one_pow],
+  rw one_pow,
   exact one_lt_two,
 end
 
@@ -327,7 +324,7 @@ begin
   refine ⟨irrational_r, lt_trans x_lt_q₁ q₁_lt_r, lt_trans r_lt_q₂ q₂_lt_y⟩,
 end
 
-theorem thomaes_discontinous_at_rational (q :ℚ)
+theorem thomaes_discontinous_at_rational (q : ℚ)
 : ¬continuous_at thomaes_function q :=
 begin
   intro h,
@@ -339,7 +336,7 @@ begin
   rcases h with ⟨δ, δ_pos, hδ⟩,
   simp_rw real.dist_eq at hδ,
 
-  rcases exists_irrational_btwn δ_pos with ⟨r, ⟨r_irrat, r_pos, r_lt_δ⟩⟩ ,
+  rcases exists_irrational_btwn δ_pos with ⟨r, ⟨r_irrat, r_pos, r_lt_δ⟩⟩,
 
   specialize hδ (show |(r + q) - q| < δ, by simpa [abs_of_pos r_pos]),
 

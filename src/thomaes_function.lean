@@ -13,14 +13,14 @@ open_locale classical
   The thomae's function on reals also known as the "Popcorn" function.
 -/
 noncomputable def thomaes_function (r : ℝ) : ℝ :=
-if h : ∃ (q : ℚ), (q : ℝ) = r then (1 : ℝ) / (classical.some h).denom else 0
+if h : ∃ (q : ℚ), (q : ℝ) = r then (classical.some h).denom⁻¹ else 0
 
 theorem thomaes_at_irrational_eq_zero {x : ℝ} (h: irrational x) :
   thomaes_function x = 0 :=
 dif_neg $ h
 
 /-- The thomae function, restricted to the rationals and taking values in the rationals. -/
-def thomae_rat (q : ℚ) : ℚ := 1 / q.denom
+def thomae_rat (q : ℚ) : ℚ := q.denom⁻¹
 
 @[norm_cast]
 lemma coe_thomae_rat (q : ℚ) : thomaes_function q = thomae_rat q :=
@@ -221,7 +221,7 @@ begin
   linarith [(abs_lt.mp h.right).right],
 end
 
-theorem no_rat_between  (A : ℤ) (q : ℚ) (l: (A / q.denom : ℚ) < q) (r: q < ((A +1) / q.denom : ℚ))
+theorem no_rat_between  (n : ℤ) (q : ℚ) (l: (n / q.denom : ℚ) < q) (r: q < ((n + 1) / q.denom : ℚ))
 : false :=
 begin
   nth_rewrite 1 ←rat.num_div_denom q at l,
@@ -240,10 +240,14 @@ begin
   apply metric.continuous_at_iff.mpr,
   simp_rw [real.dist_eq, thomaes_at_irrational_eq_zero h, sub_zero],
   intros ε ε_pos,
+
   obtain ⟨r, hr⟩ := exists_nat_one_div_lt ε_pos,
   have r_add_one_pos : 0 < r + 1 := nat.succ_pos r,
+  rw one_div at hr,
 
-  set δᵢ := λ (x :ℝ) (i :ℕ), min (|x - ⌊x * i⌋ / (i :ℝ)|)  (|x - (⌊x * i⌋ + 1) / (i :ℝ)|),
+  let δᵢ : ℝ → ℕ → ℝ  := λ x i, min
+    (|x - ⌊x * i⌋ / (i :ℝ)|)
+    (|x - (⌊x * i⌋ + 1) / (i :ℝ)|),
 
   obtain ⟨i_min, ⟨i_pos, i_le_r⟩, i_min_indice⟩ :=
     set.exists_min_image _
@@ -254,30 +258,23 @@ begin
   refine ⟨δᵢ x i_min, δᵢ_pos i_min h, λ x₁ hδ, _⟩,
 
   by_cases H : ∃ q : ℚ, (q : ℝ) = x₁,
-  { rcases H with ⟨q, rfl⟩,
+  { obtain ⟨q, rfl⟩ := H,
     norm_cast,
-
     rw abs_of_pos (thomae_rat_pos q),
-    -- TODO more simplification and golfing
-    -- simp  [thomae_rat],
+
     have r_add_one_le_q_denom : (r + 1) ≤ q.denom,
     { by_contradiction H,
       push_neg at H,
       have lt_delta_of_q := lt_of_lt_of_le hδ (i_min_indice q.denom ⟨q.pos, le_of_lt H⟩),
       obtain ⟨l, r⟩ := δᵢ_between h q.pos lt_delta_of_q,
-      apply no_rat_between (⌊ x * q.denom⌋) q,
-      { exact_mod_cast l },
-      { exact_mod_cast r } },
-   -- TODO dumb casting stuff should be removed!!
-   suffices : ((thomae_rat q) :ℝ) ≤ (((1 / (r + 1)) :ℚ) :ℝ),
-      calc ((thomae_rat q) :ℝ) ≤ (((1 / (r + 1)) :ℚ) :ℝ) : this
-      ... < ε : by { push_cast, exact hr },
-    norm_cast,
-    apply rat.le_def'.mpr,
-    simp only [thomae_rat_num, thomae_rat_denom, one_div, one_mul, nat.cast_add, nat.cast_one],
-    norm_cast,
-    rw [num_inv_nat r_add_one_pos, denom_inv_nat r_add_one_pos, one_mul],
-    exact_mod_cast r_add_one_le_q_denom,
+      exact no_rat_between (⌊ x * q.denom⌋) q (by exact_mod_cast l) (by exact_mod_cast r) },
+
+      rw thomae_rat,
+      exact_mod_cast (lt_of_le_of_lt (
+        (inv_le_inv
+          (show 0 < ((q.denom : ℚ) : ℝ), by exact_mod_cast q.pos)
+            (show 0 < (r + 1 :ℝ ), by exact_mod_cast r_add_one_pos)).mpr
+              (by exact_mod_cast r_add_one_le_q_denom)) hr),
   },
   { rw thomaes_at_irrational_eq_zero H,
     simpa using ε_pos },

@@ -37,38 +37,13 @@ end
 @[norm_cast] lemma coe_thomae_rat' (q : ℚ) : (thomae_rat q : ℝ) = thomaes_function q :=
 (coe_thomae_rat q).symm
 
-open rat
-
--- this should be in data.rat.basic
-lemma num_inv_nat {n : ℕ} (hn : 0 < n) : (n : ℚ)⁻¹.num = 1 :=
-begin
-  rw [rat.inv_def', rat.coe_nat_num, rat.coe_nat_denom],
-  suffices : (((1 : ℤ) : ℚ) / (n : ℤ)).num = 1,
-    exact_mod_cast this,
-  apply num_div_eq_of_coprime,
-  { assumption_mod_cast },
-  { simp only [nat.coprime_one_left_iff, int.nat_abs_one]}
-end
-
--- so should this
-lemma denom_inv_nat {n : ℕ} (hn : 0 < n) : (n : ℚ)⁻¹.denom = n :=
-begin
-  rw [rat.inv_def', rat.coe_nat_num, rat.coe_nat_denom],
-  suffices : ((((1 : ℤ) : ℚ) / (n : ℤ)).denom : ℤ) = n,
-    exact_mod_cast this,
-  apply denom_div_eq_of_coprime,
-  { assumption_mod_cast },
-  { simp only [nat.coprime_one_left_iff, int.nat_abs_one]},
-end
 --@[simp]
 lemma thomae_rat_num (q : ℚ) : (thomae_rat q).num = 1 :=
-  by simp [thomae_rat, num_inv_nat q.pos ]
+  by simp [thomae_rat, rat.inv_coe_nat_num q.pos ]
 --@[simp]
 lemma thomae_rat_denom (q : ℚ) : (thomae_rat q).denom = q.denom :=
-  by simp [thomae_rat, denom_inv_nat q.pos]
+  by simp [thomae_rat, rat.inv_coe_nat_denom q.pos]
 
-lemma int_not_irrational  (z : ℤ): ¬irrational z :=
-  by exact_mod_cast rat.not_irrational (z :ℚ)
 --@[simp]
 theorem thomae_rat_int_eq_one (z : ℤ) : thomae_rat z = 1 :=
   by simp [thomae_rat]
@@ -98,13 +73,11 @@ begin
   -- I copied this trick from above
   suffices :(((((q.num + ↑(q.denom) * z) : ℤ) : ℚ) / ((q.denom) : ℤ)).denom : ℤ) = q.denom,
     exact_mod_cast this,
-  apply denom_div_eq_of_coprime,
+  apply rat.denom_div_eq_of_coprime,
   exact_mod_cast q.pos,
-  -- Question here apply a list of things?
-  apply int.coprime_iff_nat_coprime.mp,
-  apply is_coprime.add_mul_left_left,
-  apply int.coprime_iff_nat_coprime.mpr,
-  exact_mod_cast q.cop,
+  exact int.coprime_iff_nat_coprime.mp
+    (is_coprime.add_mul_left_left
+      (int.coprime_iff_nat_coprime.mpr (by exact_mod_cast q.cop)) _),
 end
 
 --@[simp]
@@ -126,44 +99,6 @@ begin
   exact rat.add_int_denom _ _,
 end
 
-/--
- Intermediate def of the delta used in the proof of irrational continouty
--/
--- noncomputable def δᵢ : ℝ → ℕ → ℝ :=
--- λ x i, min (|x - ⌊x * i⌋ / (i :ℝ)|)  (|x - (⌊x * i⌋ + 1) / (i :ℝ)|)
-
-theorem δᵢ_indices_nonempty {n : ℕ} (h: 0 < n) : { i : ℕ | 0 < i ∧ i ≤ n}.nonempty :=
-⟨1, zero_lt_one, by linarith⟩
-
--- should be in mathlib
-lemma set.finite_Ico_nat (a b : ℕ) : (set.Ico a b).finite :=
-begin
-  cases le_or_lt b a with h h,
-  { rw ← set.Ico_eq_empty_iff at h,
-    rw h,
-    exact set.finite_empty },
-  { convert set.finite.image (λ x, x + a) (set.finite_lt_nat (b -a)),
-    ext c,
-    split,
-    { rintro ⟨h1, h2⟩,
-      rw le_iff_exists_add at h1,
-      rcases h1 with ⟨d, rfl⟩,
-      exact ⟨d, nat.lt_sub_left_of_add_lt h2, add_comm _ _⟩ },
-    { rintro ⟨d, hd1, rfl⟩,
-      dsimp at *,
-      refine ⟨nat.le_add_left a d, nat.add_lt_of_lt_sub_right hd1⟩ } }
-end
-
--- as should this and the other ones Icc, Ioo (other two proofs are also 3 lines long)
-lemma set.finite_Ioc_nat (a b : ℕ) : (set.Ioc a b).finite :=
-begin
-  convert set.finite_Ico_nat (a + 1) (b + 1),
-  ext c,
-  exact and_congr nat.lt_iff_add_one_le nat.lt_succ_iff.symm
-end
-
-theorem δᵢ_indices_finite (n : ℕ) : { i : ℕ | 0 < i ∧ i ≤ n}.finite :=
-set.finite_Ioc_nat 0 n
 
 theorem irrational_ne_rat {x: ℝ} (q : ℚ) (h: irrational x) : x ≠ q :=
 λ h2, h ⟨q, h2.symm⟩
@@ -233,6 +168,7 @@ begin
   norm_cast at r',
   linarith,
 end
+#check set.Icc_ℕ_finite
 
 theorem thomaes_continous_at_irrational {x} (h : irrational x)
 : continuous_at thomaes_function x :=
@@ -252,8 +188,9 @@ begin
   obtain ⟨i_min, ⟨i_pos, i_le_r⟩, i_min_indice⟩ :=
     set.exists_min_image _
     (δᵢ x)
-    (δᵢ_indices_finite _)
-    (δᵢ_indices_nonempty r_add_one_pos),
+    -- δ indices are finite and nonempty
+    (set.Ioc_ℕ_finite 0 _)
+    (⟨1, zero_lt_one, nat.one_le_of_lt r_add_one_pos⟩),
 
   refine ⟨δᵢ x i_min, δᵢ_pos i_min h, λ x₁ hδ, _⟩,
 
@@ -280,47 +217,6 @@ begin
     simpa using ε_pos },
 end
 
--- TODO math Lib
-lemma one_lt_sqrt_two : 1 < real.sqrt 2 :=
-begin
-  refine (real.lt_sqrt zero_le_one (zero_le_bit0.mpr zero_le_one)).mpr _,
-  rw one_pow,
-  exact one_lt_two,
-end
-
-lemma exists_irrational_btwn_rats {x y :ℚ} (h : (x :ℝ) < y) :
-∃ (r : ℝ), irrational r ∧ (x : ℝ) < r ∧ r < y:=
-begin
-  use x + ((y - x) : ℚ) * (real.sqrt 2)⁻¹,
-  split, {
-    refine irrational.rat_add _
-      (irrational.rat_mul
-        (irrational_inv_iff.mpr irrational_sqrt_two) _),
-    exact_mod_cast (ne_of_gt (sub_pos_of_lt h)) },
-  split, {
-    suffices : 0 < ↑(y - x) * (real.sqrt 2)⁻¹,
-      linarith,
-    refine (zero_lt_mul_right _).mpr _,
-    apply inv_pos.mpr,
-    norm_num,
-    exact_mod_cast (sub_pos_of_lt h)},
-  { apply (sub_lt_sub_iff_right (x :ℝ)).mp,
-    rw [add_sub_cancel', ←cast_sub],
-    refine (mul_lt_iff_lt_one_right _).mpr
-      (inv_lt_one one_lt_sqrt_two),
-    exact_mod_cast  (sub_pos_of_lt h) }
-end
--- TODO Mathlib
-theorem exists_irrational_btwn {x y :ℝ} (h : x < y) :
-∃ (r : ℝ), irrational r ∧ x < r ∧ r < y:=
-begin
-  rcases exists_rat_btwn h with ⟨q₁, ⟨x_lt_q₁,  q₁_lt_y⟩⟩,
-  rcases exists_rat_btwn q₁_lt_y with ⟨q₂, ⟨q₁_lt_q₂, q₂_lt_y⟩⟩,
-  rcases exists_irrational_btwn_rats q₁_lt_q₂ with ⟨r, ⟨irrational_r, q₁_lt_r, r_lt_q₂⟩⟩,
-  use r,
-  refine ⟨irrational_r, lt_trans x_lt_q₁ q₁_lt_r, lt_trans r_lt_q₂ q₂_lt_y⟩,
-end
-
 theorem thomaes_discontinous_at_rational (q : ℚ)
 : ¬continuous_at thomaes_function q :=
 begin
@@ -341,7 +237,6 @@ begin
     thomaes_at_irrational_eq_zero (irrational.add_rat q r_irrat)
   ] at hδ,
   simp only [zero_sub, abs_neg] at hδ,
-  rw abs_of_pos _ at hδ,
-  linarith,
-  exact_mod_cast (thomae_rat_pos q),
+  rw abs_of_pos (show ((thomae_rat q) : ℝ) > 0, by exact_mod_cast (thomae_rat_pos q)) at hδ,
+  exact (lt_self_iff_false _).mp hδ,
 end

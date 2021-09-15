@@ -37,32 +37,20 @@ end
 @[norm_cast] lemma coe_thomae_rat' (q : ℚ) : (thomae_rat q : ℝ) = thomaes_function q :=
 (coe_thomae_rat q).symm
 
---@[simp]
+@[simp]
 lemma thomae_rat_num (q : ℚ) : (thomae_rat q).num = 1 :=
   by simp [thomae_rat, rat.inv_coe_nat_num q.pos ]
---@[simp]
+
+@[simp]
 lemma thomae_rat_denom (q : ℚ) : (thomae_rat q).denom = q.denom :=
   by simp [thomae_rat, rat.inv_coe_nat_denom q.pos]
-
---@[simp]
-theorem thomae_rat_int_eq_one (z : ℤ) : thomae_rat z = 1 :=
-  by simp [thomae_rat]
 
 theorem thomae_rat_pos (q : ℚ) : 0 < (thomae_rat q) := begin
   apply rat.num_pos_iff_pos.mp,
   rw thomae_rat_num,
   exact zero_lt_one,
 end
---@[simp]
-theorem thomas_int_eq_one (z : ℤ): thomaes_function z = 1 := begin
-  suffices : thomaes_function (z : ℚ) = 1,
-    convert this using 2, norm_cast,
-  exact_mod_cast thomae_rat_int_eq_one z,
-end
 
-theorem irrational.add_int (z : ℤ) {x : ℝ} (h : irrational x) :
-irrational (x + ↑z) :=
-  by exact_mod_cast irrational.add_rat z h
 
 -- add to rat library?
 theorem rat.add_int_denom (z: ℤ) (q : ℚ) : (q + z).denom = q.denom :=
@@ -80,12 +68,12 @@ begin
       (int.coprime_iff_nat_coprime.mpr (by exact_mod_cast q.cop)) _),
 end
 
---@[simp]
+@[simp]
 theorem thomaes_is_perodic (n : ℤ) (x  : ℝ) : thomaes_function (x + n) = thomaes_function x  :=
 begin
   by_cases (irrational x),
   rw [
-    thomaes_at_irrational_eq_zero (irrational.add_int n h),
+    thomaes_at_irrational_eq_zero (by exact_mod_cast irrational.add_rat n h),
     thomaes_at_irrational_eq_zero h
   ],
   unfold irrational at h,
@@ -103,7 +91,7 @@ end
 theorem irrational_ne_rat {x: ℝ} (q : ℚ) (h: irrational x) : x ≠ q :=
 λ h2, h ⟨q, h2.symm⟩
 
-theorem δᵢ_pos {x : ℝ} (i : ℕ) (h : irrational x)
+lemma δᵢ_pos {x : ℝ} (i : ℕ) (h : irrational x)
 : 0 < min (|x - ⌊x * i⌋ / (i :ℝ)|)  (|x - (⌊x * i⌋ + 1) / (i :ℝ)|) :=
 begin
   simp only [abs_pos, gt_iff_lt, lt_min_iff],
@@ -168,7 +156,6 @@ begin
   norm_cast at r',
   linarith,
 end
-#check set.Icc_ℕ_finite
 
 theorem thomaes_continous_at_irrational {x} (h : irrational x)
 : continuous_at thomaes_function x :=
